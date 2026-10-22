@@ -24,6 +24,7 @@ public class UserServiceImpl implements  UserService {
   @Override
   public User createUser(UserRequest request) {
     User user = prepareUser(request);
+    
     return userRepository.save(user);
   }
 
@@ -68,5 +69,14 @@ public class UserServiceImpl implements  UserService {
 
   private UserResponse toResponse(User user) {
     return new UserResponse(user.getId(), user.getEmail(), user.getDisplayName());
+  }
+
+  @Override
+  public UserResponse getUserByIdOrThrow(UUID id) {
+    UserResponse user = getUserById(id);
+    if(user == null){
+      throw new RuntimeException("user not found");
+    }
+    return user;
   }
 }
