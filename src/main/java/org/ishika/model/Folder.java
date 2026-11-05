@@ -13,7 +13,7 @@ import lombok.Data;
 
 public class Folder {
 
-  @GeneratedValue
+  @Id
   @Column(name = "folder_id")
   private String folderId;
 
@@ -29,6 +29,6 @@ public class Folder {
   @Column(name = "created_at")
   private Timestamp createdAt;
 
-  @Column(name = "created_at")
+  @Column(name = "modified_at")
   private Timestamp modifiedAt;
 }

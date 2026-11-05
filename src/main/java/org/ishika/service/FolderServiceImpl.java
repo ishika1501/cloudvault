@@ -1,24 +1,32 @@
+
 package org.ishika.service;
 
+import static org.ishika.utils.Constant.HOME_DIRECTORY;
+
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+
 import org.ishika.model.Folder;
 import org.ishika.repository.FolderRepository;
 import org.ishika.request.FolderRequest;
 import org.ishika.response.FolderContentsResponse;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
-import java.time.Instant;
-
 @Service
-@RequiredArgsConstructor
 public class FolderServiceImpl implements FolderService {
 
   private final UserService userService;
   private final FolderRepository folderRepository;
+
+  public FolderServiceImpl(@Lazy UserService userService, FolderRepository folderRepository) {
+    this.userService = userService;
+    this.folderRepository = folderRepository;
+  }
 
   @Override
   public Folder createFolder(FolderRequest folderRequest) {
@@ -38,9 +46,8 @@ public class FolderServiceImpl implements FolderService {
 
   @Override
   public FolderContentsResponse getFolderContents(String folderId) {
-    Folder folder = getFolderOrThrow(folderId);
-    List<Folder> folders = folderRepository
-        .findByParentFolderId(folderId);
+    getFolderOrThrow(folderId);
+    List<Folder> folders = folderRepository.findByParentId(folderId);
     return new FolderContentsResponse(folders, Collections.emptyList());
   }
 
@@ -50,16 +57,17 @@ public class FolderServiceImpl implements FolderService {
     if (folder.isEmpty()) {
       throw new RuntimeException("Folder doesn't exist");
     }
-    return folder.orElse(null);
+    return folder.get();
   }
 
   @Override
   public void deleteFolder(String id) {
-    Folder folder = getFolderOrThrow(id);
+    getFolderOrThrow(id);
     folderRepository.deleteById(id);
   }
 
-  private void validateUpdateRequest(FolderRequest folderRequest, String folderId) {
+  private void validateUpdateRequest(FolderRequest folderRequest,
+      String folderId) {
     Folder folder = getFolderOrThrow(folderId);
     if (!folder.getParentId().equals(folderRequest.getParentId())) {
       getFolderOrThrow(folderRequest.getParentId());
@@ -68,15 +76,26 @@ public class FolderServiceImpl implements FolderService {
 
   private Folder prepareFolder(FolderRequest folderRequest) {
     Folder folder = new Folder();
+    folder.setFolderId(UUID.randomUUID().toString());
     folder.setFolderName(folderRequest.getFolderName());
+    folder.setParentId(folderRequest.getParentId());
     folder.setUserId(folderRequest.getUserId());
     folder.setCreatedAt(Timestamp.from(Instant.now()));
-    folder.setCreatedAt(Timestamp.from(Instant.now()));
+    folder.setModifiedAt(Timestamp.from(Instant.now()));
     return folder;
   }
 
   private void validateRequest(FolderRequest folderRequest) {
     userService.getUserByIdOrThrow(folderRequest.getUserId());
+
+    if (!parentFolderValidationRequired(folderRequest.getFolderName())) {
+      return;
+    }
+
     getFolderOrThrow(folderRequest.getParentId());
+  }
+
+  private boolean parentFolderValidationRequired(final String folderName) {
+    return !HOME_DIRECTORY.equals(folderName);
   }
 }

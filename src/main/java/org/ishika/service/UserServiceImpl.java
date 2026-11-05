@@ -1,9 +1,12 @@
 package org.ishika.service;
 
+import static org.ishika.utils.Constant.HOME_DIRECTORY;
+
 import java.util.List;
 import java.util.UUID;
 import org.ishika.model.User;
 import org.ishika.repository.UserRepository;
+import org.ishika.request.FolderRequest;
 import org.ishika.request.UserRequest;
 import org.ishika.response.UserResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,14 +21,18 @@ public class UserServiceImpl implements  UserService {
   @Autowired
   UserRepository userRepository;
 
+  @Autowired
+  FolderService folderService;
+
   private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
 
   @Override
   public User createUser(UserRequest request) {
     User user = prepareUser(request);
-    
-    return userRepository.save(user);
+    final User save = userRepository.save(user);
+    postUserSaveTask(save);
+    return user;
   }
 
   @Override
@@ -53,6 +60,17 @@ public class UserServiceImpl implements  UserService {
   public void deleteUser(UUID id) {
     User user = findUser(id);
     userRepository.delete(user);
+  }
+
+  private void postUserSaveTask(final User user) {
+    folderService.createFolder(prepareDefaultFolder(user));
+  }
+
+  private FolderRequest prepareDefaultFolder(final User user) {
+    FolderRequest folderRequest = new FolderRequest();
+    folderRequest.setFolderName(HOME_DIRECTORY);
+    folderRequest.setUserId(user.getId());
+    return folderRequest;
   }
 
   private User prepareUser(UserRequest request) {
