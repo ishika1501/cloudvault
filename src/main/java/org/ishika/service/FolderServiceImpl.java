@@ -3,7 +3,6 @@ package org.ishika.service;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.ishika.model.Folder;
 import org.ishika.repository.FolderRepository;
@@ -17,7 +16,6 @@ import java.time.Instant;
 @Service
 @RequiredArgsConstructor
 public class FolderServiceImpl implements FolderService {
-
 
   private final UserService userService;
   private final FolderRepository folderRepository;
@@ -47,6 +45,15 @@ public class FolderServiceImpl implements FolderService {
   }
 
   @Override
+  public Folder getFolderOrThrow(String parentId) {
+    Optional<Folder> folder = folderRepository.findById(parentId);
+    if (folder.isEmpty()) {
+      throw new RuntimeException("Folder doesn't exist");
+    }
+    return folder.orElse(null);
+  }
+
+  @Override
   public void deleteFolder(String id) {
     Folder folder = getFolderOrThrow(id);
     folderRepository.deleteById(id);
@@ -72,13 +79,4 @@ public class FolderServiceImpl implements FolderService {
     userService.getUserByIdOrThrow(folderRequest.getUserId());
     getFolderOrThrow(folderRequest.getParentId());
   }
-
-  private Folder getFolderOrThrow(String parentId) {
-    Optional<Folder> folder = folderRepository.findById(parentId);
-    if (folder.isEmpty()) {
-      throw new RuntimeException("Folder doesn't exist");
-    }
-    return folder.orElse(null);
-  }
-
 }
