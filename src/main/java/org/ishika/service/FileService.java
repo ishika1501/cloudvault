@@ -14,4 +14,5 @@ public interface FileService {
   void softDeleteFile(String fileId, UUID userId);
   void hardDeleteFile(String fileId, UUID userId);
   void restoreFile(String fileId, UUID userId);
+  void renameFile(String fileId, String newFileName, UUID userId);
 }

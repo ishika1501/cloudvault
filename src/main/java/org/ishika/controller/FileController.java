@@ -67,4 +67,13 @@ public class FileController {
     fileService.restoreFile(fileId, userId);
     return ResponseEntity.noContent().build();
   }
+
+  @PutMapping("/{fileId}/rename")
+  public ResponseEntity<Void> renameFile(@PathVariable String fileId, @RequestParam String newFileName,
+      @RequestParam UUID userId) {
+
+    fileService.renameFile(fileId, newFileName, userId);
+
+    return ResponseEntity.noContent().build();
+  }
 }

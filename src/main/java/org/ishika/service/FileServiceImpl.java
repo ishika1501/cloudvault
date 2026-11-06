@@ -201,6 +201,30 @@ public class FileServiceImpl implements FileService {
     fileRepository.save(metadata);
   }
 
+  @Override
+  public void renameFile(String fileId, String newFileName, UUID userId) {
+
+    FileMetaData metadata = fileRepository.findById(fileId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+
+    if (!metadata.getOwnerId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+    }
+
+    if (metadata.getStatus() == FileStatus.DELETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot rename a deleted file");
+    }
+
+    if (newFileName == null || newFileName.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name cannot be empty");
+    }
+
+    metadata.setFileName(newFileName.trim());
+    metadata.setUpdatedAt(Timestamp.from(Instant.now()));
+
+    fileRepository.save(metadata);
+  }
+
   private FileMetaData prepareFileMetaData(FileRequest request) {
     FileMetaData metadata = new FileMetaData();
     metadata.setFileId(UUID.randomUUID().toString());
