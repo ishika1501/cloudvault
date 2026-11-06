@@ -14,15 +14,23 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.ishika.model.FileMetaData;
+import org.ishika.repository.FileRepository;
+
 @Service
 public class FolderServiceImpl implements FolderService {
 
   private final UserService userService;
   private final FolderRepository folderRepository;
+  private final FileRepository fileRepository;
 
-  public FolderServiceImpl(@Lazy UserService userService, FolderRepository folderRepository) {
+
+  public FolderServiceImpl(@Lazy UserService userService, FolderRepository folderRepository,
+      FileRepository fileRepository) {
+
     this.userService = userService;
     this.folderRepository = folderRepository;
+    this.fileRepository = fileRepository;
   }
 
   @Override
@@ -56,9 +64,14 @@ public class FolderServiceImpl implements FolderService {
 
   @Override
   public FolderContentsResponse getFolderContents(String folderId, UUID userId) {
+    // Verify that the folder belongs to this user
     getFolderForUserOrThrow(folderId, userId);
+    // Fetch all subfolders
     List<Folder> folders = folderRepository.findByParentId(folderId);
-    return new FolderContentsResponse(folders, List.of());
+    // Fetch all files inside this folder
+    List<FileMetaData> files = fileRepository.findByFolderId(folderId);
+    // Return both lists
+    return new FolderContentsResponse(folders, files);
   }
 
   @Override

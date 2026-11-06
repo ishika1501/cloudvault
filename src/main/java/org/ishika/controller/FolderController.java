@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+
 @RestController
 @RequestMapping("/folders")
 @RequiredArgsConstructor
@@ -29,16 +30,16 @@ public class FolderController {
     return folderService.createFolder(folderRequest);
   }
 
-  @GetMapping("/{id}/contents")
-  public FolderContentsResponse getContents(@PathVariable String id, @RequestParam UUID userId) {
-    return folderService.getFolderContents(id, userId);
-  }
+  @GetMapping("/{folderId}/contents")
+  public ResponseEntity<FolderContentsResponse> getFolderContents(@PathVariable String folderId,
+      @RequestParam UUID userId) {
 
+    return ResponseEntity.ok(folderService.getFolderContents(folderId, userId));
+  }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteUser(@PathVariable String id) {
     folderService.deleteFolder(id);
     return ResponseEntity.noContent().build();
   }
-
 }
