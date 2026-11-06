@@ -71,4 +71,11 @@ public class FileMetaData implements Persistable<String> {
 
   @Column(name = "content_type", nullable = false, length = 255)
   private String contentType;
+
+  @Column(name = "deleted_at")
+  private Timestamp deletedAt;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "previous_status", length = 20)
+  private FileStatus previousStatus;
 }

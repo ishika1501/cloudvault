@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.ishika.enums.FileStatus;
 import org.ishika.model.Folder;
 import org.ishika.repository.FolderRepository;
 import org.ishika.request.FolderRequest;
@@ -68,9 +69,8 @@ public class FolderServiceImpl implements FolderService {
     getFolderForUserOrThrow(folderId, userId);
     // Fetch all subfolders
     List<Folder> folders = folderRepository.findByParentId(folderId);
-    // Fetch all files inside this folder
-    List<FileMetaData> files = fileRepository.findByFolderId(folderId);
-    // Return both lists
+    // Fetch all files inside this folderd
+    List<FileMetaData> files = fileRepository.findByFolderIdAndStatusNot(folderId, FileStatus.DELETED);
     return new FolderContentsResponse(folders, files);
   }
 

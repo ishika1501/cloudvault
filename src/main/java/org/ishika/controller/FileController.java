@@ -7,12 +7,13 @@ import org.ishika.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.util.UUID;
-
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -47,5 +48,23 @@ public class FileController {
   public ResponseEntity<String> downloadFile(@PathVariable String fileId, @RequestParam("userId") UUID userId) {
     String downloadUrl = fileService.generateDownloadUrl(fileId, userId);
     return ResponseEntity.ok(downloadUrl);
+  }
+
+  @DeleteMapping("/{fileId}")
+  public ResponseEntity<Void> softDeleteFile(@PathVariable String fileId, @RequestParam UUID userId) {
+    fileService.softDeleteFile(fileId, userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping("/{fileId}/permanent")
+  public ResponseEntity<Void> hardDeleteFile(@PathVariable String fileId, @RequestParam UUID userId) {
+    fileService.hardDeleteFile(fileId, userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PutMapping("/{fileId}/restore")
+  public ResponseEntity<Void> restoreFile(@PathVariable String fileId, @RequestParam UUID userId) {
+    fileService.restoreFile(fileId, userId);
+    return ResponseEntity.noContent().build();
   }
 }

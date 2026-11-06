@@ -114,6 +114,93 @@ public class FileServiceImpl implements FileService {
     return s3Presigner.presignGetObject(presignRequest).url().toString();
   }
 
+  @Override
+  public void softDeleteFile(String fileId, UUID userId) {
+
+    // 1. Find the file in PostgreSQL
+    FileMetaData metadata = fileRepository.findById(fileId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+
+    // 2. Check whether the user owns this file
+    if (!metadata.getOwnerId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+    }
+
+    // 3. Check whether the file is already deleted
+    if (metadata.getStatus() == FileStatus.DELETED) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File already deleted");
+    }
+
+    // Save the current status before deleting
+    metadata.setPreviousStatus(metadata.getStatus());
+
+    // Mark file as deleted
+    metadata.setStatus(FileStatus.DELETED);
+
+    // 5. Record deletion time
+    Timestamp now = Timestamp.from(Instant.now());
+    metadata.setDeletedAt(now);
+    metadata.setUpdatedAt(now);
+
+    // 6. Save changes in PostgreSQL
+    fileRepository.save(metadata);
+  }
+
+  @Override
+  public void hardDeleteFile(String fileId, UUID userId) {
+    // 1. Find file metadata
+    FileMetaData metadata = fileRepository.findById(fileId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+    // 2. Verify ownership
+    if (!metadata.getOwnerId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+    }
+    // 3. Only allow permanent deletion of soft-deleted files
+    if (metadata.getStatus() != FileStatus.DELETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File must be soft deleted before permanent deletion");
+    }
+    // 4. Delete actual file from Backblaze B2
+    storageService.deleteFile(metadata.getStorageKey());
+    // 5. Delete metadata from PostgreSQL
+    fileRepository.delete(metadata);
+  }
+
+
+  @Override
+  public void restoreFile(String fileId, UUID userId) {
+
+    // 1. Find the file
+    FileMetaData metadata = fileRepository.findById(fileId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+
+    // 2. Verify ownership
+    if (!metadata.getOwnerId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+    }
+
+    // 3. Check whether the file is soft-deleted
+    if (metadata.getStatus() != FileStatus.DELETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is not deleted");
+    }
+
+    // 4. Restore its previous status
+    if (metadata.getPreviousStatus() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Previous file status is missing");
+    }
+
+    metadata.setStatus(metadata.getPreviousStatus());
+
+    // 5. Clear deletion information
+    metadata.setPreviousStatus(null);
+    metadata.setDeletedAt(null);
+
+    // 6. Update timestamp
+    metadata.setUpdatedAt(Timestamp.from(Instant.now()));
+
+    // 7. Save changes
+    fileRepository.save(metadata);
+  }
+
   private FileMetaData prepareFileMetaData(FileRequest request) {
     FileMetaData metadata = new FileMetaData();
     metadata.setFileId(UUID.randomUUID().toString());

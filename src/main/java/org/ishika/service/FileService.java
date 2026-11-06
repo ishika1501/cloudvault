@@ -11,4 +11,7 @@ public interface FileService {
   FileMetaData createFile(FileRequest request);
   FileMetaData uploadFile(MultipartFile file, String folderId, UUID userId) throws IOException;
   String generateDownloadUrl(String fileId, UUID userId);
+  void softDeleteFile(String fileId, UUID userId);
+  void hardDeleteFile(String fileId, UUID userId);
+  void restoreFile(String fileId, UUID userId);
 }
