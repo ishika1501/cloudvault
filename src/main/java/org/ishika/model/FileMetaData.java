@@ -1,29 +1,54 @@
+
 package org.ishika.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import java.sql.Time;
+import jakarta.persistence.Transient;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.Data;
 import org.ishika.enums.FileStatus;
+import org.springframework.data.domain.Persistable;
 
 @Data
 @Entity
 @Table(name = "files")
-public class FileMetaData {
+public class FileMetaData implements Persistable<String> {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id", nullable = false, updatable = false)
   private String fileId;
+
+  @Transient
+  private boolean isNew = true;
+
+  @Override
+  public String getId() {
+    return fileId;
+  }
+
+  @Override
+  public boolean isNew() {
+    return isNew;
+  }
+
+  @PostLoad
+  @PrePersist
+  void markNotNew() {
+    this.isNew = false;
+  }
+
+  @Column(name = "file_name", nullable = false)
+  private String fileName;
+
+  @Column(name = "storage_key", nullable = false, unique = true)
+  private String storageKey;
 
   @Column(name = "owner_id", nullable = false)
   private UUID ownerId;
@@ -44,6 +69,6 @@ public class FileMetaData {
   @Column(name = "status", nullable = false, length = 20)
   private FileStatus status;
 
-  @Column(name = "content_type", nullable = false, length = 20)
+  @Column(name = "content_type", nullable = false, length = 255)
   private String contentType;
 }

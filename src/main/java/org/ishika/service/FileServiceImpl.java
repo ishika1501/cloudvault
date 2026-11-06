@@ -1,42 +1,138 @@
 package org.ishika.service;
 
+import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.Random;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ishika.enums.FileStatus;
 import org.ishika.model.FileMetaData;
 import org.ishika.repository.FileRepository;
 import org.ishika.request.FileRequest;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FileServiceImpl implements FileService {
 
   private final FolderService folderService;
   private final FileRepository fileRepository;
+  private final StorageService storageService;
+
+  private final S3Presigner s3Presigner;
+
+  @Value("${backblaze.b2.bucket}")
+  private String bucketName;
 
   @Override
   public FileMetaData createFile(final FileRequest request) {
+
     validateRequest(request);
-    final FileMetaData fileMetaData = prepareFileMetaData(request);
+
+    FileMetaData fileMetaData = prepareFileMetaData(request);
+
     return fileRepository.save(fileMetaData);
   }
 
-  private FileMetaData prepareFileMetaData(final FileRequest request) {
-    FileMetaData fileMetaData = new FileMetaData();
-    fileMetaData.setSize(request.getSizeBytes());
-    fileMetaData.setStatus(FileStatus.PENDING);
-    fileMetaData.setFolderId(request.getFolderId());
-    fileMetaData.setContentType(request.getContentType());
-    fileMetaData.setFileId(UUID.randomUUID().toString());
-    fileMetaData.setCreatedAt(Timestamp.from(Instant.now()));
-    return fileMetaData;
+  @Override
+  public FileMetaData uploadFile(MultipartFile file, String folderId, UUID userId) throws IOException {
+    if (file == null || file.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File cannot be empty");
+    }
+    if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File name is required");
+    }
+    // 2. Check that the folder belongs to the user.
+    folderService.getFolderForUserOrThrow(folderId, userId);
+    // 3. Upload the actual file to Backblaze.
+    String storageKey = storageService.uploadFile(file);
+    try {
+      // 4. Prepare metadata.
+      FileMetaData metadata = new FileMetaData();
+
+      metadata.setFileId(UUID.randomUUID().toString());
+      metadata.setFileName(file.getOriginalFilename());
+      metadata.setStorageKey(storageKey);
+      metadata.setOwnerId(userId);
+      metadata.setFolderId(folderId);
+      metadata.setSize(file.getSize());
+      metadata.setContentType(file.getContentType() != null ? file.getContentType() : "application/octet-stream");
+      metadata.setStatus(FileStatus.PENDING);
+
+      Timestamp now = Timestamp.from(Instant.now());
+
+      metadata.setCreatedAt(now);
+      metadata.setUpdatedAt(now);
+      // 5. Save metadata in PostgreSQL.
+      return fileRepository.save(metadata);
+
+    } catch (RuntimeException exception) {
+
+      // If database saving fails, clean up the uploaded object.
+      try {
+        storageService.deleteFile(storageKey);
+      } catch (RuntimeException cleanupException) {
+        log.error("Failed to clean up uploaded object: {}", storageKey, cleanupException);
+      }
+
+      throw exception;
+    }
   }
 
-  private void validateRequest(final FileRequest request) {
-    folderService.getFolderOrThrow(request.getFolderId());
+
+  @Override
+  public String generateDownloadUrl(String fileId, UUID userId) {
+
+    // 1. Find file metadata in PostgreSQL
+    FileMetaData metadata = fileRepository.findById(fileId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found"));
+
+    // 2. Verify file ownership
+    if (!metadata.getOwnerId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+    }
+
+    // 3. Create request for the file stored in Backblaze
+    GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(bucketName).key(metadata.getStorageKey())
+        .build();
+
+    // 4. Generate presigned URL valid for 10 minutes
+    GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder().signatureDuration(Duration.ofMinutes(10))
+        .getObjectRequest(getObjectRequest).build();
+
+    // 5. Generate and return URL
+    return s3Presigner.presignGetObject(presignRequest).url().toString();
+  }
+
+  private FileMetaData prepareFileMetaData(FileRequest request) {
+    FileMetaData metadata = new FileMetaData();
+    metadata.setFileId(UUID.randomUUID().toString());
+    metadata.setOwnerId(request.getUserId());
+    metadata.setFolderId(request.getFolderId());
+    metadata.setFileName(request.getName());
+    metadata.setSize(request.getSizeBytes());
+    metadata.setContentType(request.getContentType());
+    metadata.setStatus(FileStatus.PENDING);
+
+    Timestamp now = Timestamp.from(Instant.now());
+
+    metadata.setCreatedAt(now);
+    metadata.setUpdatedAt(now);
+
+    return metadata;
+  }
+
+  private void validateRequest(FileRequest request) {
+    folderService.getFolderForUserOrThrow(request.getFolderId(), request.getUserId());
   }
 }
