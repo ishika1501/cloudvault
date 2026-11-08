@@ -1,6 +1,8 @@
 package org.ishika.repository;
 
 import java.util.List;
+import java.util.UUID;
+
 import org.ishika.enums.FileStatus;
 import org.ishika.model.FileMetaData;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,5 +11,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface FileRepository extends JpaRepository<FileMetaData, String> {
   List<FileMetaData> findByFolderId(String folderId);
-  List<FileMetaData> findByFolderIdAndStatusNot(String folderId, FileStatus status);
+  List<FileMetaData> findByFolderIdAndOwnerIdAndStatusNot(String folderId, UUID ownerId, FileStatus status);
 }

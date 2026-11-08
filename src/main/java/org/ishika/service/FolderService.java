@@ -11,6 +11,6 @@ public interface FolderService {
   FolderContentsResponse getFolderContents(String folderId, UUID userId);
   Folder getFolderOrThrow(String folderId);
   Folder getFolderForUserOrThrow(String folderId, UUID userId);
-  void deleteFolder(String folderId);
+  void deleteFolder(String folderId, UUID userId);
 
 }

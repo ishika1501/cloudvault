@@ -36,11 +36,8 @@ public class FileServiceImpl implements FileService {
 
   @Override
   public FileMetaData createFile(final FileRequest request) {
-
     validateRequest(request);
-
     FileMetaData fileMetaData = prepareFileMetaData(request);
-
     return fileRepository.save(fileMetaData);
   }
 

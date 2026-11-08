@@ -1,10 +1,13 @@
 package org.ishika.controller;
 
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.ishika.model.User;
+import org.ishika.request.LoginRequest;
 import org.ishika.request.UserRequest;
+import org.ishika.response.LoginResponse;
 import org.ishika.response.UserResponse;
 import org.ishika.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,14 +29,14 @@ public class UserController {
   UserService userService;
 
   @PostMapping
-  User createUser(@RequestBody UserRequest userRequest){
+  public UserResponse createUser(@Valid @RequestBody UserRequest userRequest) {
     return userService.createUser(userRequest);
   }
 
-  @GetMapping
-  public List<UserResponse> getAllUsers() {
-    return userService.getAllUsers();
-  }
+//  @GetMapping
+//  public List<UserResponse> getAllUsers() {
+//    return userService.getAllUsers();
+//  }
 
   @GetMapping("/{id}")
   public UserResponse getUserById(@PathVariable UUID id) {
@@ -50,5 +53,12 @@ public class UserController {
     userService.deleteUser(id);
     return ResponseEntity.noContent().build();
   }
+
+  @PostMapping("/login")
+  public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+    return userService.login(request);
+  }
+
+
 
 }

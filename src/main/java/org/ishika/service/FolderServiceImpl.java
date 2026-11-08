@@ -12,7 +12,10 @@ import org.ishika.request.FolderRequest;
 import org.ishika.response.FolderContentsResponse;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.server.ResponseStatusException;
 
 import org.ishika.model.FileMetaData;
@@ -65,12 +68,10 @@ public class FolderServiceImpl implements FolderService {
 
   @Override
   public FolderContentsResponse getFolderContents(String folderId, UUID userId) {
-    // Verify that the folder belongs to this user
     getFolderForUserOrThrow(folderId, userId);
-    // Fetch all subfolders
-    List<Folder> folders = folderRepository.findByParentId(folderId);
-    // Fetch all files inside this folderd
-    List<FileMetaData> files = fileRepository.findByFolderIdAndStatusNot(folderId, FileStatus.DELETED);
+    List<Folder> folders = folderRepository.findByParentIdAndUserId(folderId, userId);
+    List<FileMetaData> files = fileRepository.findByFolderIdAndOwnerIdAndStatusNot(folderId, userId,
+        FileStatus.DELETED);
     return new FolderContentsResponse(folders, files);
   }
 
@@ -90,10 +91,20 @@ public class FolderServiceImpl implements FolderService {
     return folder;
   }
 
+//  @DeleteMapping("/{id}")
+//  public ResponseEntity<Void> deleteFolder(@PathVariable String id) {
+//    UUID userId = currentUserService.getCurrentUserId();
+//    folderService.deleteFolder(id, userId);
+//    return ResponseEntity.noContent().build();
+//  }
+
   @Override
-  public void deleteFolder(String folderId) {
-    getFolderOrThrow(folderId);
-    folderRepository.deleteById(folderId);
+  public void deleteFolder(String folderId, UUID userId) {
+    // Verify that the folder belongs to the authenticated user.
+    Folder folder = getFolderForUserOrThrow(folderId, userId);
+
+    // Delete the folder.
+    folderRepository.delete(folder);
   }
 
   private void validateCreateRequest(FolderRequest request) {

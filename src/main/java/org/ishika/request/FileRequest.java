@@ -14,7 +14,6 @@ public class FileRequest {
   @NotNull(message = "Folder ID is required")
   String folderId;
 
-  @NotNull(message = "User ID is required")
   UUID userId;
 
   @NotBlank(message = "File name is required")
