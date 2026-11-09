@@ -1,4 +1,3 @@
-
 package org.ishika.model;
 
 import jakarta.persistence.Column;
@@ -6,43 +5,20 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.PostLoad;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import java.sql.Timestamp;
 import java.util.UUID;
 import lombok.Data;
 import org.ishika.enums.FileStatus;
-import org.springframework.data.domain.Persistable;
 
 @Data
 @Entity
 @Table(name = "files")
-public class FileMetaData implements Persistable<String> {
+public class FileMetaData {
 
   @Id
   @Column(name = "id", nullable = false, updatable = false)
   private String fileId;
-
-  @Transient
-  private boolean isNew = true;
-
-  @Override
-  public String getId() {
-    return fileId;
-  }
-
-  @Override
-  public boolean isNew() {
-    return isNew;
-  }
-
-  @PostLoad
-  @PrePersist
-  void markNotNew() {
-    this.isNew = false;
-  }
 
   @Column(name = "file_name", nullable = false)
   private String fileName;
