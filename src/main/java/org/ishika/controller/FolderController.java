@@ -42,6 +42,12 @@ public class FolderController {
     return ResponseEntity.ok(folderService.getFolderContents(folderId, userId));
   }
 
+  @GetMapping("/root")
+  public ResponseEntity<Folder> getRootFolder() {
+    UUID userId = currentUserService.getCurrentUserId();
+    return ResponseEntity.ok(folderService.getRootFolder(userId));
+  }
+
   @PutMapping("/{folderId}")
   public ResponseEntity<Folder> updateFolder(@PathVariable String folderId, @RequestBody FolderRequest folderRequest) {
     UUID userId = currentUserService.getCurrentUserId();

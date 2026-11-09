@@ -21,4 +21,7 @@ public class User {
 
   @Column(name = "display_name", nullable = false, length = 100)
   private String displayName;
+
+  @Column(name = "google_id", unique = true, length = 255)
+  private String googleId;
 }

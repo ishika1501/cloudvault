@@ -90,6 +90,28 @@ public class UserServiceImpl implements UserService {
     return new LoginResponse(user.getId(), user.getEmail(), user.getDisplayName(), token);
   }
 
+  @Override
+  public LoginResponse loginWithGoogle(String googleId, String email, String displayName) {
+    email = email.trim().toLowerCase();
+    User user = userRepository.findByGoogleId(googleId).orElse(null);
+    if (user == null) {
+      if (userRepository.existsByEmail(email)) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered with another login method");
+      }
+
+      user = new User();
+      user.setEmail(email);
+      user.setDisplayName(displayName);
+      user.setGoogleId(googleId);
+
+      user = userRepository.save(user);
+      postUserSaveTask(user);
+    }
+
+    String token = jwtService.generateToken(user.getId(), user.getEmail());
+    return new LoginResponse(user.getId(), user.getEmail(), user.getDisplayName(), token);
+  }
+
   private void postUserSaveTask(final User user) {
     folderService.createFolder(prepareDefaultFolder(user));
   }

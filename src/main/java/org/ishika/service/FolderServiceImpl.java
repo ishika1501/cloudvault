@@ -76,6 +76,14 @@ public class FolderServiceImpl implements FolderService {
   }
 
   @Override
+  public Folder getRootFolder(UUID userId) {
+    return folderRepository
+        .findByUserIdAndFolderNameAndParentIdIsNull(userId, "home")
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Root folder not found"));
+  }
+
+  @Override
   public Folder getFolderOrThrow(String folderId) {
     return folderRepository.findById(folderId)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Folder not found"));

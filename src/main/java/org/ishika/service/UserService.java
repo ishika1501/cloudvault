@@ -16,4 +16,5 @@ public interface UserService {
   void deleteUser(UUID id);
   UserResponse getUserByIdOrThrow(UUID id);
   LoginResponse login(LoginRequest request);
+  LoginResponse loginWithGoogle(String googleId, String email, String displayName);
 }
