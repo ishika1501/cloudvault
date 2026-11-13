@@ -75,13 +75,22 @@ public class UserServiceImpl implements UserService {
     userRepository.delete(user);
   }
 
+
   @Override
   public LoginResponse login(LoginRequest request) {
     String email = request.getEmail().trim().toLowerCase();
+
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
-    if (user.getPasswordHash() == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+    System.out.println("USER FOUND: " + user.getEmail());
+    System.out.println("PASSWORD HASH EXISTS: " + (user.getPasswordHash() != null));
+
+    boolean passwordMatches =
+        user.getPasswordHash() != null && passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
+
+    System.out.println("PASSWORD MATCHES: " + passwordMatches);
+    if (!passwordMatches) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
     }
 
@@ -89,6 +98,7 @@ public class UserServiceImpl implements UserService {
     System.out.println("LOGIN SUCCESSFUL");
     return new LoginResponse(user.getId(), user.getEmail(), user.getDisplayName(), token);
   }
+
 
   @Override
   public LoginResponse loginWithGoogle(String googleId, String email, String displayName) {

@@ -28,18 +28,29 @@ public class SecurityConfig {
 
     http
         .csrf(csrf -> csrf.disable())
+
         .sessionManagement(session ->
             session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
         )
+
         .authorizeHttpRequests(auth -> auth
             .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-            .requestMatchers(HttpMethod.POST, "/auth/google/exchange").permitAll()
+
+            // Normal email/password registration and login
+            .requestMatchers(HttpMethod.POST, "/users", "/users/login").permitAll()
+
+            // Google OAuth
             .requestMatchers("/oauth2/**", "/login/**").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/google/exchange").permitAll()
+
+            // All other endpoints require JWT authentication
             .anyRequest().authenticated()
         )
+
         .oauth2Login(oauth2 -> oauth2
             .successHandler(googleOAuthSuccessHandler)
         )
+
         .addFilterBefore(
             jwtAuthenticationFilter,
             UsernamePasswordAuthenticationFilter.class
