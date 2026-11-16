@@ -8,6 +8,7 @@ import org.ishika.request.FolderRequest;
 import org.ishika.response.FolderContentsResponse;
 import org.ishika.security.CurrentUserService;
 import org.ishika.service.FolderService;
+import org.ishika.service.RecentActivityService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +28,7 @@ public class FolderController {
 
   private final FolderService folderService;
   private final CurrentUserService currentUserService;
+  private final RecentActivityService recentActivityService;
 
   @PostMapping
   public Folder createFolder(@RequestBody FolderRequest folderRequest) {
@@ -37,9 +39,10 @@ public class FolderController {
 
   @GetMapping("/{folderId}/contents")
   public ResponseEntity<FolderContentsResponse> getFolderContents(@PathVariable String folderId) {
-    System.out.println("FOLDER CONTROLLER HIT: " + folderId);
     UUID userId = currentUserService.getCurrentUserId();
-    return ResponseEntity.ok(folderService.getFolderContents(folderId, userId));
+    FolderContentsResponse contents = folderService.getFolderContents(folderId, userId);
+    recentActivityService.recordFolderOpen(folderId, userId);
+    return ResponseEntity.ok(contents);
   }
 
   @GetMapping("/root")

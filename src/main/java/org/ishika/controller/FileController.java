@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.ishika.model.FileMetaData;
 import org.ishika.request.FileRequest;
 import org.ishika.service.FileService;
+import org.ishika.service.RecentActivityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,11 +29,15 @@ public class FileController {
 
   private final FileService fileService;
   private final CurrentUserService currentUserService;
+  private final RecentActivityService recentActivityService;
 
   @Autowired
-  public FileController(final FileService fileService, final CurrentUserService currentUserService) {
+  public FileController(final FileService fileService, final CurrentUserService currentUserService,
+      final RecentActivityService recentActivityService) {
+
     this.fileService = fileService;
     this.currentUserService = currentUserService;
+    this.recentActivityService = recentActivityService;
   }
 
   @PostMapping
@@ -54,6 +59,7 @@ public class FileController {
   public ResponseEntity<String> downloadFile(@PathVariable String fileId) {
     UUID userId = currentUserService.getCurrentUserId();
     String downloadUrl = fileService.generateDownloadUrl(fileId, userId);
+    recentActivityService.recordFileOpen(fileId, userId);
     return ResponseEntity.ok(downloadUrl);
   }
 

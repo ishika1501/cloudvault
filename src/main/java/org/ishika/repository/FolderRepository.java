@@ -9,8 +9,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FolderRepository extends JpaRepository<Folder, String> {
-
   List<Folder> findByParentIdAndUserId(String parentId, UUID userId);
-
   Optional<Folder> findByUserIdAndFolderNameAndParentIdIsNull(UUID userId, String folderName);
 }

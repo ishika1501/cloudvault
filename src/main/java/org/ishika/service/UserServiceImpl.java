@@ -4,19 +4,20 @@ import static org.ishika.utils.Constant.HOME_DIRECTORY;
 
 import java.util.List;
 import java.util.UUID;
+
 import org.ishika.model.User;
 import org.ishika.repository.UserRepository;
 import org.ishika.request.FolderRequest;
 import org.ishika.request.LoginRequest;
 import org.ishika.request.UserRequest;
+import org.ishika.response.LoginResponse;
 import org.ishika.response.UserResponse;
+import org.ishika.security.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.ishika.security.JwtService;
-import org.ishika.response.LoginResponse;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -32,7 +33,6 @@ public class UserServiceImpl implements UserService {
 
   private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-
   @Override
   public UserResponse createUser(UserRequest request) {
     String email = request.getEmail().trim().toLowerCase();
@@ -43,8 +43,10 @@ public class UserServiceImpl implements UserService {
 
     User user = prepareUser(request);
     user.setEmail(email);
+
     User savedUser = userRepository.save(user);
     postUserSaveTask(savedUser);
+
     return toResponse(savedUser);
   }
 
@@ -55,16 +57,17 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public UserResponse getUserById(UUID id) {
-    User user = findUser(id);
-    return toResponse(user);
+    return toResponse(findUser(id));
   }
 
   @Override
   public UserResponse updateUser(UUID id, UserRequest request) {
     User user = findUser(id);
-    user.setEmail(request.getEmail());
+
+    user.setEmail(request.getEmail().trim().toLowerCase());
     user.setDisplayName(request.getDisplayName());
     user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+
     User updatedUser = userRepository.save(user);
     return toResponse(updatedUser);
   }
@@ -75,7 +78,7 @@ public class UserServiceImpl implements UserService {
     userRepository.delete(user);
   }
 
-
+  // Normal email/password login
   @Override
   public LoginResponse login(LoginRequest request) {
     String email = request.getEmail().trim().toLowerCase();
@@ -83,42 +86,76 @@ public class UserServiceImpl implements UserService {
     User user = userRepository.findByEmail(email)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
-    System.out.println("USER FOUND: " + user.getEmail());
-    System.out.println("PASSWORD HASH EXISTS: " + (user.getPasswordHash() != null));
-
     boolean passwordMatches =
         user.getPasswordHash() != null && passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
 
-    System.out.println("PASSWORD MATCHES: " + passwordMatches);
     if (!passwordMatches) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
     }
 
     String token = jwtService.generateToken(user.getId(), user.getEmail());
-    System.out.println("LOGIN SUCCESSFUL");
+
     return new LoginResponse(user.getId(), user.getEmail(), user.getDisplayName(), token);
   }
 
+  @Override
+  public UserResponse getUserByIdOrThrow(UUID id) {
+    return getUserById(id);
+  }
 
+  // Google login and account linking
   @Override
   public LoginResponse loginWithGoogle(String googleId, String email, String displayName) {
+
     email = email.trim().toLowerCase();
+
+    // 1. Check if this Google account is already linked
     User user = userRepository.findByGoogleId(googleId).orElse(null);
-    if (user == null) {
-      if (userRepository.existsByEmail(email)) {
-        throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered with another login method");
+
+    if (user != null) {
+
+      // Ensure Google ID is associated with the same email
+      if (!user.getEmail().equalsIgnoreCase(email)) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Google account email does not match linked account");
       }
 
-      user = new User();
-      user.setEmail(email);
-      user.setDisplayName(displayName);
-      user.setGoogleId(googleId);
+    } else {
 
-      user = userRepository.save(user);
-      postUserSaveTask(user);
+      // 2. Check if a CloudVault account already exists
+      user = userRepository.findByEmail(email).orElse(null);
+
+      if (user != null) {
+
+        // 3. Link Google to the existing account
+        if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
+
+          throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is linked to another Google account");
+        }
+
+        // Update only Google ID.
+        // Existing password hash remains unchanged.
+        user.setGoogleId(googleId);
+
+        user = userRepository.save(user);
+
+      } else {
+
+        // 4. Create a new account if email doesn't exist
+        user = new User();
+        user.setEmail(email);
+        user.setDisplayName(displayName);
+        user.setGoogleId(googleId);
+
+        user = userRepository.save(user);
+
+        // Create home folder only for a new account
+        postUserSaveTask(user);
+      }
     }
 
+    // 5. Generate JWT for Google login
     String token = jwtService.generateToken(user.getId(), user.getEmail());
+
     return new LoginResponse(user.getId(), user.getEmail(), user.getDisplayName(), token);
   }
 
@@ -148,14 +185,5 @@ public class UserServiceImpl implements UserService {
 
   private UserResponse toResponse(User user) {
     return new UserResponse(user.getId(), user.getEmail(), user.getDisplayName());
-  }
-
-  @Override
-  public UserResponse getUserByIdOrThrow(UUID id) {
-    UserResponse user = getUserById(id);
-    if (user == null) {
-      throw new RuntimeException("user not found");
-    }
-    return user;
   }
 }
